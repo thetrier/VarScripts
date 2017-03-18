@@ -1,0 +1,78 @@
+#MAC ADDRESS Changer v 0.1
+#author TheTrier 
+#Date: 2017/03/18
+#Feel free to modify it or improve the functionality of this script
+#Please do not ask for support or troubleshooting. 
+
+echo "==========================================================================================================================="
+echo "READ THIS CARREFULLY\n"
+echo "THIS IS AN EXPERIMENTAL SCRIPT AND IS PROVIDED \"AS IS\", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT"
+echo "NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL"
+echo "THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,"
+echo "TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE."
+echo
+echo
+echo "It seems that in some Linux distribution an unpatched NetworkManager has problems with this bug:"
+echo "https://bugs.debian.org/cgi-bin/bugreport.cgi\?bug=836351"
+echo "So in case that you have this problem with WiFi interface, i was not able to find any workaround than reboot the PC/Laptop"
+echo "So you have been WARNED!!!"
+echo "===========================================================================================================================\n\n\n"
+sleep 20s
+
+echo "All above being said lets start with important stuff :))"
+if [ "$(whoami)" != 'root' ]; then 
+	echo -e "You have no permission to run $0 as non-root user.\n Please run it as root or with sudo. \n (Ex: sudo $0)"
+exit 0
+else
+    echo "What type of interface is it: wired or wireless (please type \"wired\" or \"wireless\")"
+	read type
+	if [ "$type" = "wired" ]; then
+	echo "Interface name you want the MAC to be changed \n (Ex: type eth0)"
+	read interface
+
+# If interface is wired (eth0) in that case we need to unmanage first the interface.. This is an ugly workaround due the fact NetworKamanger is not able to change the mac address for ethernet (or i do not know how to do it). So basically will go like this:
+
+	echo -e "Unmanaging your wired interface $interface\n"
+	nmcli dev set $interface managed no
+#-second chnage the read/write permission for file interfaces
+	echo -e "Changing permissions for /etc/network/interfaces\n"
+	chmod 646 /etc/network/interfaces
+#-third adding wired interface to the file to be able to use ifup/ifdown and
+	echo -e "Adding interface to /etc/network/interfaces\n"
+	echo "iface $interface inet dhcp" >> /etc/network/interfaces
+#changing back permissions for /etc/network/interfaces
+	chmod 644 /etc/network/interfaces
+
+	mac_initial=`nmcli dev show $interface | grep HWADDR | awk '{print $2}'`
+	change_mac=`openssl rand -hex 6 | sed 's/\(..\)/\1:/g; s/.$//'`
+	echo "This is your actual MAC $mac_initial"
+	echo "We will change it with this one $change_mac"
+
+	ifdown $interface
+	ifconfig $interface hw ether $change_mac
+	ifup $interface
+	mac_changed=`sudo ifconfig $interface | grep ether | awk '{print $2}'`
+
+		if [ "$mac_initial" != "$mac_changed" ]; then 
+		echo "Your mac has been changed"
+		else echo "Sorry, is a beta script, something went wrong and i have no idea what :)"
+		exit 0
+		fi
+
+	elif [ $type = "wireless" ]; then
+		echo "Type the AccessPoint name (Ex: MyWifi)"
+         	read ap
+		echo "Type interface name (Ex: wlan0)"
+		read iface
+		wifi_initial=`nmcli dev show $iface | grep HWADDR | awk '{print $2}'`
+		wifi_change=`openssl rand -hex 6 | sed 's/\(..\)/\1:/g; s/.$//'`
+		echo "This is your actual MAC \"$wifi_initial\" and we will change it with this one \"$wifi_change\"\n\n"
+		echo "READ THIS!!!\nIn case of \"Error: Connection activation failed.\" please type \"nmcli conn reload\" to activate wifi\n\n"
+#nmcli connection down $ap
+		sleep 10s
+		nmcli connection modify --temporary $ap 802-11-wireless.cloned-mac-address $wifi_change 2>/dev/null
+		nmcli connection up $ap
+	else 
+		echo -e "I have no idea what you are talking about. Are you sure you typed \"wired\" or \"wireless\"?"
+	fi
+fi
