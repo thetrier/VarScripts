@@ -1,7 +1,7 @@
 #MAC ADDRESS Changer v 0.1
 #author TheTrier 
 #Date: 2017/03/18
-#Feel free to modify it or improve the functionality of this script
+#Feel free to modify it or to improve the functionality of this script.
 #Please do not ask for support or troubleshooting. 
 
 echo "==========================================================================================================================="
@@ -30,7 +30,9 @@ else
 	echo "Interface name you want the MAC to be changed \n (Ex: type eth0)"
 	read interface
 
-# If interface is wired (eth0) in that case we need to unmanage first the interface.. This is an ugly workaround due the fact NetworKamanger is not able to change the mac address for ethernet (or i do not know how to do it). So basically will go like this:
+# If interface is wired (eth0) in that case we need to unmanage first the interface.. This is an ugly workaround due the fact 
+#NetworKamanger is not able to change the mac address for ethernet (or i do not know how to do it). So basically will go like 
+#this:
 
 	echo -e "Unmanaging your wired interface $interface\n"
 	nmcli dev set $interface managed no
@@ -67,7 +69,8 @@ else
 		wifi_initial=`nmcli dev show $iface | grep HWADDR | awk '{print $2}'`
 		wifi_change=`openssl rand -hex 6 | sed 's/\(..\)/\1:/g; s/.$//'`
 		echo "This is your actual MAC \"$wifi_initial\" and we will change it with this one \"$wifi_change\"\n\n"
-		echo "READ THIS!!!\nIn case of \"Error: Connection activation failed.\" please type \"nmcli conn reload\" to activate wifi\n\n"
+		echo "READ THIS!!!\nIn case of \"Error: Connection activation failed.\" please type \"nmcli conn reload\"" 
+		echo "to activate wifi\n\n"
 #nmcli connection down $ap
 		sleep 10s
 		nmcli connection modify --temporary $ap 802-11-wireless.cloned-mac-address $wifi_change 2>/dev/null
