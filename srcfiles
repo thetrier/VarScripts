@@ -18,4 +18,4 @@ then
 
 		for file in "${fltp[@]}"; do find / -name $file -type f -size +$min -a -size -$max -exec ls -1alh 2>/dev/null {} \; | awk '{print $5 "         " $9}';done;
 fi
-
+exit 0
