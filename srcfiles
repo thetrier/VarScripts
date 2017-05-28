@@ -1,0 +1,21 @@
+#!/bin/bash
+#author: thetrier
+
+if [[ $EUID -ne 0 ]]
+then
+	echo "To get files from all location this must be run as root. Please use su or sudo $0" 1>&2
+   	exit 100
+
+	else [[ $EUID -eq 0 ]]
+		echo -n "Please input file type separated by space: "
+		echo "(eq.: *.tar.gz *.zip *.bz2)"
+		read -a fltp
+		echo -n "Please insert minimum file's size: "
+		echo "(eq. 10K 1M)"
+		read min
+		echo "Please insert maximum size of the file: "
+		read max
+
+		for file in "${fltp[@]}"; do find / -name $file -type f -size +$min -a -size -$max -exec ls -1alh 2>/dev/null {} \; | awk '{print $5 "         " $9}';done;
+fi
+
