@@ -1,3 +1,5 @@
+# TCP port verifying
+
 $ipaddress = read-host "Please give me one ip"
 $port = read-host "Please give me one port"
 
