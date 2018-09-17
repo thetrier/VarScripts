@@ -4,17 +4,17 @@
 # Author : The Trier
 # Contact - well, this one is hard :)
 
-$ip = Read-host @("Insert IP addresses separated by space")
+$ips = Read-host @("Insert IP addresses separated by space")
 $ports = Read-Host @("Insert ports separated by space")
 
-foreach ($ips in $ip) {
+foreach ($ip in $ips) {
     foreach ($port in $ports) {
     $connection = New-Object System.Net.Sockets.TcpClient($ipaddress, $port)
     }
 }
 if ($connection.Connected) {
-    Write-Host "$ips has $port opened"
+    Write-Host "$ip has $port opened"
 }
 else {
-    Write-Host "Port $port closed"
+    Write-Host "$ip has port $port closed"
 }
