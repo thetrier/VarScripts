@@ -3,6 +3,9 @@
 # Ver 0.1 - perhaps will improve in time
 # Author : The Trier
 # Contact - well, this one is hard :)
+# BE WARNED THAT PORT SCANNING OF EXTERNAL IPs CAN BRING LEGAL PROBLEMS!!! SO PLEASE USE THIS WITH CAUTION.
+
+#define ip
 
 $ips = Read-host @("Insert IP addresses separated by space")
 $ports = Read-Host @("Insert ports separated by space")
