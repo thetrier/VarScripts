@@ -1,4 +1,4 @@
-﻿# romulus.dobrin@temenos.com
+﻿# th3tr13r
 # Version: 1.1 (FIXED)
 # Windows Incident Response Gathering Script
 
