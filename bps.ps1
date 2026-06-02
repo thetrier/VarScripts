@@ -8,24 +8,17 @@
 
 #define ip
 
-$ipaddress = Read-Host "Please give me one IP"
-$port = Read-Host "Please give me one port"
+$ip = Read-host @("Insert IP addresses separated by space")
+$ports = Read-Host @("Insert ports separated by space")
 
-Write-Host "Connecting .........."
-
-try {
-    $connection = New-Object System.Net.Sockets.TcpClient
-    $connection.Connect($ipaddress, [int]$port)
-
-    if ($connection.Connected) {
-        Write-Host "Connected"
+foreach ($ips in $ip) {
+    foreach ($port in $ports) {
+    $connection = New-Object System.Net.Sockets.TcpClient($ipaddress, $port)
     }
 }
-catch {
-    Write-Host "Failed to connect to ${ipaddress}:${port}" -ForegroundColor Red
+if ($connection.Connected) {
+    Write-Host "$ips has $port opened"
 }
-finally {
-    if ($connection) {
-        $connection.Close()
-    }
+else {
+    Write-Host "Port $port closed"
 }
