@@ -1,16 +1,24 @@
 # TCP port verifying
+#Due to new powershell interpretation of functions i've added some modifications
 
-$ipaddress = read-host "Please give me one ip"
-$port = read-host "Please give me one port"
+$ipaddress = Read-Host "Please give me one IP"
+$port = Read-Host "Please give me one port"
 
-$connection = New-Object System.Net.Sockets.TcpClient($ipaddress, $port)
+Write-Host "Connecting .........."
 
+try {
+    $connection = New-Object System.Net.Sockets.TcpClient
+    $connection.Connect($ipaddress, [int]$port)
 
-echo "Connecting .........."
-
-if ($connection.Connected) {
-    Write-Host "Connected"
+    if ($connection.Connected) {
+        Write-Host "Connected"
+    }
 }
-else {
-    Write-Host "Failed"
+catch {
+    Write-Host "Failed to connect to ${ipaddress}:${port}" -ForegroundColor Red
+}
+finally {
+    if ($connection) {
+        $connection.Close()
+    }
 }
