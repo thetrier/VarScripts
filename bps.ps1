@@ -1,23 +1,31 @@
 
 # Basic port scanner in powershell
-# Ver 0.1 - perhaps will improve in time
+# Ver 0.2 - perhaps will improve in time
 # Author : The Trier
 # Contact - well, this one is hard :)
+# Modified the way is connecting due to powershell modifications in handling functions
 # BE WARNED THAT PORT SCANNING OF EXTERNAL IPs CAN BRING LEGAL PROBLEMS!!! SO PLEASE USE THIS WITH CAUTION.
 
 #define ip
 
-$ips = Read-host @("Insert IP addresses separated by space")
-$ports = Read-Host @("Insert ports separated by space")
+$ipaddress = Read-Host "Please give me one IP"
+$port = Read-Host "Please give me one port"
 
-foreach ($ip in $ips) {
-    foreach ($port in $ports) {
-    $connection = New-Object System.Net.Sockets.TcpClient($ipaddress, $port)
+Write-Host "Connecting .........."
+
+try {
+    $connection = New-Object System.Net.Sockets.TcpClient
+    $connection.Connect($ipaddress, [int]$port)
+
+    if ($connection.Connected) {
+        Write-Host "Connected"
     }
 }
-if ($connection.Connected) {
-    Write-Host "$ip has $port opened"
+catch {
+    Write-Host "Failed to connect to ${ipaddress}:${port}" -ForegroundColor Red
 }
-else {
-    Write-Host "$ip has port $port closed"
+finally {
+    if ($connection) {
+        $connection.Close()
+    }
 }
