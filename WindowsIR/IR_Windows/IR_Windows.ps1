@@ -1,4 +1,4 @@
-﻿# th3tr13r
+# th3tri3r
 # Version: 1.1 (FIXED)
 # Windows Incident Response Gathering Script
 
@@ -94,7 +94,7 @@ function Write-Section {
 }
 
 # --- PROGRESS ---
-$TotalSections = 22
+$TotalSections = 21
 $CurrentSection = 0
 
 function Show-ProgressBar {
@@ -189,10 +189,71 @@ Show-ProgressBar
 # =========================
 Write-Section "Services"
 
-Run-Command "Services Inventory" {
+Run-Command "Services Inventory (CIM)" {
     Get-CimInstance Win32_Service |
         Select-Object Name, DisplayName, State, StartMode, PathName |
         Sort-Object State
+}
+
+Show-ProgressBar
+
+Write-Section "Services Modified in Last 30 Days (Registry)"
+
+Run-Command "Recently Modified Service Keys" {
+
+    Get-ChildItem "HKLM:\SYSTEM\CurrentControlSet\Services" |
+    Where-Object {
+        $_.LastWriteTime -gt (Get-Date).AddDays(-30)
+    } |
+    Select-Object PSChildName, LastWriteTime |
+    Sort-Object LastWriteTime -Descending
+}
+
+Show-ProgressBar
+
+Write-Section "Scheduled Tasks"
+
+Run-Command "Scheduled Tasks Full IR Enrichment" {
+
+    Get-ScheduledTask | ForEach-Object {
+
+        $task = $_
+        $info = Get-ScheduledTaskInfo -TaskName $task.TaskName -TaskPath $task.TaskPath -ErrorAction SilentlyContinue
+
+        try {
+            $xml = Export-ScheduledTask -TaskName $task.TaskName -TaskPath $task.TaskPath -ErrorAction Stop
+            [xml]$t = $xml
+
+            $actions = $t.Task.Actions.Exec | Where-Object { $_ -ne $null -and $_.Command -ne "" }
+
+            foreach ($action in $actions) {
+
+                $cmd = "$($action.Command) $($action.Arguments)".Trim()
+                $exe = $action.Command -replace '"',''
+
+                $file = if ($exe -and (Test-Path $exe)) {
+                    Get-Item $exe -ErrorAction SilentlyContinue
+                } else {
+                    $null
+                }
+
+                [PSCustomObject]@{
+                    TaskName      = $task.TaskName
+                    TaskPath      = $task.TaskPath
+                    State         = $task.State
+                    CommandLine   = $cmd
+                    BinaryPath    = $exe
+                    CreationTime  = $file.CreationTime
+                    LastWriteTime = $file.LastWriteTime
+                    LastRunTime   = $info.LastRunTime
+                    NextRunTime   = $info.NextRunTime
+                }
+            }
+        }
+        catch {
+            Write-Output "Failed parsing task: $($task.TaskName)"
+        }
+    }
 }
 
 Show-ProgressBar
@@ -218,6 +279,55 @@ Write-Section "Local Administrators"
 
 Run-Command "Administrators Group" {
     Get-LocalGroupMember -Group "Administrators"
+}
+
+Show-ProgressBar
+
+
+#=================================
+#LOGON SESSIONS
+#=================================
+
+Write-Section "Logon Sessions"
+
+Run-Command "Logon Sessions" {
+    quser
+}
+
+Run-Command "Logged On Users" {
+    query user
+}
+
+Show-ProgressBar
+
+#==========================
+# FAILED LOGONS
+#==========================
+Write-Section "Failed Logons"
+
+Run-Command "Failed Logons" {
+
+    Get-WinEvent -FilterHashtable @{
+        LogName='Security'
+        Id=4625
+    } -MaxEvents 100
+}
+
+Show-ProgressBar
+
+# ============================
+# Executables modified/written
+# ============================
+Write-Section "Executables Modified Last 30 Days"
+
+Run-Command "Modified Executables" {
+
+    Get-ChildItem C:\ -Recurse -Include *.exe `
+        -ErrorAction SilentlyContinue |
+        Where-Object {
+            $_.LastWriteTime -gt (Get-Date).AddDays(-30)
+        } |
+        Select-Object FullName, LastWriteTime
 }
 
 Show-ProgressBar
@@ -256,6 +366,267 @@ Run-Command "Scripts created" {
     }
     else {
         Write-Log "No scripts found in last 30 days"
+    }
+}
+
+Show-ProgressBar
+
+#============================
+# PERSISTENCE STARTUP COMMANDS
+#============================
+Write-Section "Startup Items"
+
+Run-Command "Startup Commands" {
+
+    Get-CimInstance Win32_StartupCommand |
+    Select-Object Name, Command, Location, User
+}
+
+Show-ProgressBar
+
+#===========================
+#PERSISTENCE - REGISTRY
+#===========================
+
+Write-Section "Autoruns Registry Locations"
+
+Run-Command "Run Keys" {
+
+    $RunLocations = @(
+        "HKLM:\Software\Microsoft\Windows\CurrentVersion\Run",
+        "HKLM:\Software\Microsoft\Windows\CurrentVersion\RunOnce",
+        "HKCU:\Software\Microsoft\Windows\CurrentVersion\Run",
+        "HKCU:\Software\Microsoft\Windows\CurrentVersion\RunOnce"
+    )
+
+    foreach ($Location in $RunLocations) {
+
+        if (Test-Path $Location) {
+
+            Write-Output "`n===== $Location ====="
+
+            Get-ItemProperty $Location
+        }
+    }
+}
+
+#=============================
+#PERSISTENCE - STARTUP FOLDER
+#=============================
+
+Run-Command "Startup Folder Items" {
+
+    Get-ChildItem `
+        "C:\ProgramData\Microsoft\Windows\Start Menu\Programs\Startup" `
+        -ErrorAction SilentlyContinue
+
+    Get-ChildItem `
+        "$env:APPDATA\Microsoft\Windows\Start Menu\Programs\Startup" `
+        -ErrorAction SilentlyContinue
+}
+
+Show-ProgressBar
+
+#==========================
+#PERSISTENCE WMI
+#==========================
+
+Write-Section "WMI Persistence Checks"
+
+Run-Command "WMI Event Filters" {
+
+    Get-WmiObject -Namespace root\subscription `
+        -Class __EventFilter
+}
+
+Run-Command "WMI Event Consumers" {
+
+    Get-WmiObject -Namespace root\subscription `
+        -Class CommandLineEventConsumer
+}
+
+Run-Command "WMI Filter Bindings" {
+
+    Get-WmiObject -Namespace root\subscription `
+        -Class __FilterToConsumerBinding
+}
+
+Show-ProgressBar
+
+# =========================
+# CMD - RECENT COMMANDS
+# =========================
+
+Write-Section "Recent Commands"
+
+Run-Command "DOSKEY History" {
+    doskey /history
+}
+
+# =========================
+# POWERSHELL HISTORY
+# =========================
+
+Write-Section "PowerShell History"
+
+$Users = Get-ChildItem C:\Users -Directory -ErrorAction SilentlyContinue
+
+foreach ($User in $Users) {
+
+    $HistoryPath = Join-Path $User.FullName `
+        "AppData\Roaming\Microsoft\Windows\PowerShell\PSReadLine\ConsoleHost_history.txt"
+
+    if (Test-Path $HistoryPath) {
+
+        Add-Content $ResultsFile "===== PowerShell History for $($User.Name) ====="
+
+        Get-Content $HistoryPath |
+            Out-File -Append $ResultsFile
+
+        Add-Content $ResultsFile ""
+    }
+}
+
+Show-ProgressBar
+
+# =========================
+# SOFTWARE INVENTORY
+# =========================
+
+Write-Section "Installed Software Inventory"
+
+Run-Command "Installed Software" {
+
+    Get-ItemProperty `
+        HKLM:\Software\Microsoft\Windows\CurrentVersion\Uninstall\* ,
+        HKLM:\Software\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall\* |
+        Select-Object DisplayName, DisplayVersion, Publisher, InstallDate |
+        Sort-Object DisplayName
+}
+
+Show-ProgressBar
+
+# =========================
+# USB HISTORY
+# =========================
+
+Write-Section "USB Device History"
+
+Run-Command "USB Storage Devices" {
+
+    Get-ItemProperty `
+        HKLM:\SYSTEM\CurrentControlSet\Enum\USBSTOR\*\* `
+        -ErrorAction SilentlyContinue
+}
+
+# =========================
+# MOUNTED DEVICES
+# =========================
+
+Run-Command "Mounted Devices" {
+
+    Get-ItemProperty `
+        HKLM:\SYSTEM\MountedDevices
+}
+
+Show-ProgressBar
+
+# =========================
+# RDP HISTORY
+# =========================
+
+Write-Section "RDP History"
+
+Run-Command "RDP Client Connections" {
+
+    Get-ItemProperty `
+        "HKCU:\Software\Microsoft\Terminal Server Client\Servers\*" `
+        -ErrorAction SilentlyContinue
+}
+
+Run-Command "RDP Recent Servers" {
+
+    Get-ItemProperty `
+        "HKCU:\Software\Microsoft\Terminal Server Client\Default" `
+        -ErrorAction SilentlyContinue
+}
+
+Run-Command "Remote Desktop Event Logs" {
+
+    Get-WinEvent -LogName `
+        "Microsoft-Windows-TerminalServices-LocalSessionManager/Operational" `
+        -MaxEvents 100
+}
+
+Show-ProgressBar
+
+# =========================
+# BROWSER ARTIFACTS
+# =========================
+
+Write-Section "Browser Artifacts"
+
+$Users = Get-ChildItem C:\Users -Directory -ErrorAction SilentlyContinue
+
+foreach ($User in $Users) {
+
+    Add-Content $ResultsFile "`n===== Browser Artifacts for $($User.Name) ====="
+
+    $ChromeHistory = Join-Path `
+        $User.FullName `
+        "AppData\Local\Google\Chrome\User Data\Default\History"
+
+    if (Test-Path $ChromeHistory) {
+
+        Add-Content $ResultsFile "[+] Chrome History File Found:"
+        Add-Content $ResultsFile $ChromeHistory
+
+        Copy-Item `
+            $ChromeHistory `
+            -Destination $Folder `
+            -ErrorAction SilentlyContinue
+    }
+
+    $EdgeHistory = Join-Path `
+        $User.FullName `
+        "AppData\Local\Microsoft\Edge\User Data\Default\History"
+
+    if (Test-Path $EdgeHistory) {
+
+        Add-Content $ResultsFile "[+] Edge History File Found:"
+        Add-Content $ResultsFile $EdgeHistory
+
+        Copy-Item `
+            $EdgeHistory `
+            -Destination $Folder `
+            -ErrorAction SilentlyContinue
+    }
+
+    $FirefoxProfiles = Join-Path `
+        $User.FullName `
+        "AppData\Roaming\Mozilla\Firefox\Profiles"
+
+    if (Test-Path $FirefoxProfiles) {
+
+        Add-Content $ResultsFile "[+] Firefox Profiles Found:"
+        Add-Content $ResultsFile $FirefoxProfiles
+
+        Get-ChildItem `
+            $FirefoxProfiles `
+            -Directory `
+            -ErrorAction SilentlyContinue |
+            ForEach-Object {
+
+                $PlacesFile = Join-Path $_.FullName "places.sqlite"
+
+                if (Test-Path $PlacesFile) {
+
+                    Copy-Item `
+                        $PlacesFile `
+                        -Destination $Folder `
+                        -ErrorAction SilentlyContinue
+                }
+            }
     }
 }
 
