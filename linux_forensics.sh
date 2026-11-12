@@ -1,6 +1,6 @@
 #!/bin/bash
-## th3tr1er
-# Version: 1.0
+## romulus.dobrin@temenos.com
+# Version: 1.1
 # Linux Forensics Information Gathering Script
 # 04.03.2026
 # Added:
@@ -11,6 +11,7 @@
 ## extracting OS Version and Distribution
 ## copying .timer files to check for persistence
 ## would be a good idea to copyservices files as well (just in case)
+## added paths for webshell locations
 
 # Check if running as root
 main() {
@@ -181,6 +182,55 @@ if command -v find >/dev/null 2>&1; then
 else
     echo "command find cannot be executed; binary not found" >> "$RESULTS_FILE"
 fi
+progress_bar
+
+# ===== Webshell Candidate Files - Last 30 Days =====
+section "Webshell Candidate Files - Last 30 Days"
+
+if command -v find >/dev/null 2>&1; then
+    echo "Search criteria: text files modified within the last 30 days" >> "$RESULTS_FILE"
+    echo "Executable permissions are not required." >> "$RESULTS_FILE"
+    echo "" >> "$RESULTS_FILE"
+
+  
+find /var/lib/tomcat/webapps/ROOT /var/lib/tomcat/webapps /opt/tomcat /tmp /var/tmp /dev/shm /var/www/html /usr/share/nginx/html /var/cache /var/cache/nginx /var/cache/apache2 /var/cache/tomcat /var/lib /var/lib/php /var/lib/php/sessions /var/log /var/log/tomcat /var/spool /run /run/user /var/run /opt /var/opt /srv /home /tmp \
+    -type f -mtime -30 \
+    \( \
+        -iname '*.php' -o -iname '*.php2' -o -iname '*.php3' -o \
+        -iname '*.php4' -o -iname '*.php5' -o -iname '*.php6' -o \
+        -iname '*.php7' -o -iname '*.php8' -o -iname '*.pht' -o \
+        -iname '*.phtm' -o -iname '*.phtml' -o -iname '*.phps' -o \
+        -iname '*.phar' -o -iname '*.inc' -o -iname '*.module' -o \
+        -iname '*.ctp' -o -iname '*.twig' -o -iname '*.tpl' -o \
+        -iname '*.jsp' -o -iname '*.jspx' -o -iname '*.jspf' -o \
+        -iname '*.jsf' -o -iname '*.jsv' -o -iname '*.jsw' -o \
+        -iname '*.asp' -o -iname '*.aspx' -o -iname '*.ashx' -o \
+        -iname '*.asmx' -o -iname '*.ascx' -o -iname '*.axd' -o \
+        -iname '*.cshtml' -o -iname '*.vbhtml' -o -iname '*.razor' -o \
+        -iname '*.cgi' -o -iname '*.fcgi' -o -iname '*.pl' -o \
+        -iname '*.pm' -o -iname '*.py' -o -iname '*.pyw' -o \
+        -iname '*.rb' -o -iname '*.rhtml' -o -iname '*.erb' -o \
+        -iname '*.rake' -o -iname '*.sh' -o -iname '*.bash' -o \
+        -iname '*.zsh' -o -iname '*.ksh' -o -iname '*.lua' -o \
+        -iname '*.tcl' -o -iname '*.cfm' -o -iname '*.cfml' -o \
+        -iname '*.cfc' -o -iname '*.shtml' -o -iname '*.shtm' -o \
+        -iname '*.stm' -o -iname '*.html' -o -iname '*.htm' -o \
+        -iname '*.xhtml' -o -iname '*.xml' -o -iname '*.svg' -o \
+        -iname '*.war' -o -iname '*.action' -o -iname '*.do' -o \
+        -iname '*.jar' -o -iname '*.wsf' -o -iname '*.wsh' -o \
+        -iname '*.mjs' -o -iname '*.ejs' -o -iname '*.hbs' -o \
+        -iname '*.handlebars' -o -iname '*.mustache' -o \
+        -iname '*.vm' -o -iname '*.ftl' \
+    \) \
+    -printf 'Modified: %TY-%Tm-%Td %TH:%TM:%TS | Permissions: %m | Owner: %u:%g | Path: %p\n' \
+    >> "$RESULTS_FILE" 2>/dev/null
+
+
+    echo "" >> "$RESULTS_FILE"
+else
+    echo "command find cannot be executed; binary not found" >> "$RESULTS_FILE"
+fi
+
 progress_bar
 # ===== Logins =====
 section "Logins"
