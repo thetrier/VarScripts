@@ -1,5 +1,5 @@
 #!/bin/bash
-## romulus.dobrin@temenos.com
+## th3tr13r
 # Version: 1.1
 # Linux Forensics Information Gathering Script
 # 04.03.2026
